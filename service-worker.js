@@ -1,4 +1,4 @@
-const CACHE_NAME = 'panda-ledger-v1';
+const CACHE_NAME = 'panda-ledger-v2';
 const APP_SHELL = [
   './index.html',
   './manifest.json',
@@ -22,8 +22,9 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Network-first for GitHub API calls (never cache live financial data).
-// Cache-first for the local app shell so the UI still opens offline.
+// GitHub API: network-only, never cache live financial data.
+// App shell: network-first, so an installed PWA always gets the latest
+// deployed version when online. The cache is only a fallback for offline use.
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
 
@@ -36,6 +37,12 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        const responseCopy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseCopy));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
