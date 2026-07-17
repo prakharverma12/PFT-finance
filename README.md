@@ -84,8 +84,8 @@ This is where your budget numbers and transactions actually get saved.
 
 4. Click the dropdown next to the green button at the bottom — choose **Create secret gist** (not "public"). Secret means only people with the exact link can see it — it keeps your finances private.
 5. Once created, look at the address bar of your browser. The URL will look like:
-   `https://gist.github.com/yourusername/41de6a56d9e8b3b20ac246a`
-6. The long string of letters and numbers at the end (`41de6a56d9e8b3b20ac246a` in this example) is your **Gist ID**. Copy it somewhere safe (like a Notes app) — you'll need it in Step 5.
+   `https://gist.github.com/yourusername/9f3c1a7e2b5d4681c0a9e3f7`
+6. The long string of letters and numbers at the end (`9f3c1a7e2b5d4681c0a9e3f7` in this example) is your **Gist ID**. Copy it somewhere safe (like a Notes app) — you'll need it in Step 5.
 
 ## Step 4 — Create your access key (a "Personal Access Token")
 
