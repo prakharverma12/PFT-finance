@@ -146,6 +146,45 @@
   }
   .master-card::before{ background:var(--brass); width:5px; }
 
+  .balance-masked{
+    font-family:var(--font-mono);
+    font-size:1.9rem;
+    font-weight:600;
+    letter-spacing:3px;
+    color:var(--ink-faint);
+  }
+  .btn-toggle-balance{
+    margin-top:10px;
+    background:transparent;
+    border:1px solid var(--brass-dim);
+    color:var(--brass);
+    border-radius:var(--radius-sm);
+    padding:8px 14px;
+    font-size:0.72rem;
+    font-family:var(--font-mono);
+    letter-spacing:1px;
+    text-transform:uppercase;
+    cursor:pointer;
+  }
+
+  .statement-balance{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:18px 18px 14px;
+  }
+  .statement-balance .label{ font-size:0.72rem; color:var(--ink-muted); text-transform:uppercase; letter-spacing:1.5px; }
+  .balance-interactive{ display:flex; align-items:center; gap:10px; }
+  .balance-interactive .value{ font-family:var(--font-mono); font-size:1.6rem; font-weight:600; color:var(--brass); }
+  .balance-masked-sm{
+    font-family:var(--font-mono);
+    font-size:1.6rem;
+    font-weight:600;
+    letter-spacing:2px;
+    color:var(--ink-faint);
+  }
+  .balance-interactive input{ width:150px; padding:8px 10px; font-size:1rem; text-align:right; }
+
   .card-header{
     display:flex;
     justify-content:space-between;
@@ -242,6 +281,47 @@
   .txn-amount.credit{ color:var(--credit); }
   .txn-amount.debit{ color:var(--debit); }
   .txn-balance{ font-family:var(--font-mono); font-size:0.68rem; color:var(--ink-faint); margin-top:3px; }
+
+  .txn-delete{
+    background:transparent;
+    border:1px solid var(--hairline);
+    color:var(--ink-faint);
+    border-radius:6px;
+    width:26px; height:26px;
+    font-size:0.85rem;
+    flex-shrink:0;
+    cursor:pointer;
+    line-height:1;
+  }
+  .txn-delete:active{ border-color:var(--debit); color:var(--debit); }
+
+  .txn-reverse{
+    background:transparent;
+    border:1px solid var(--hairline);
+    color:var(--ink-faint);
+    border-radius:6px;
+    width:26px; height:26px;
+    font-size:0.9rem;
+    flex-shrink:0;
+    cursor:pointer;
+    line-height:1;
+  }
+  .txn-reverse:active{ border-color:var(--brass); color:var(--brass); }
+
+  .txn-tag{
+    font-family:var(--font-mono);
+    font-size:0.62rem;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    color:var(--ink-faint);
+    border:1px solid var(--hairline);
+    border-radius:6px;
+    padding:5px 8px;
+    flex-shrink:0;
+    white-space:nowrap;
+  }
+  .txn-row.is-reversed{ opacity:0.55; }
+  .txn-row.is-reversal{ background:rgba(217,169,78,0.03); }
 
   .statement-empty{
     padding:48px 20px;
@@ -482,6 +562,10 @@
 
   <main id="statement-view">
     <div class="statement-paper">
+      <div class="statement-balance">
+        <span class="label">Current Balance</span>
+        <div class="balance-interactive" id="balance-interactive"></div>
+      </div>
       <div class="statement-head">
         <h3>Transaction History</h3>
         <span id="statement-count">0 entries</span>
@@ -566,6 +650,7 @@
     statementView: document.getElementById('statement-view'),
     statementList: document.getElementById('statement-list'),
     statementCount: document.getElementById('statement-count'),
+    balanceInteractive: document.getElementById('balance-interactive'),
     toast: document.getElementById('toast')
   };
 
@@ -575,6 +660,7 @@
   let isEditMode = false;
   let entryMode = 'spend';
   let activeTab = 'ledger';
+  let balanceVisible = false;
 
   function showDebug(message){ DOM.debugPanel.textContent = message; DOM.debugPanel.style.display = 'block'; }
   function clearDebug(){ DOM.debugPanel.style.display = 'none'; DOM.debugPanel.textContent = ''; }
@@ -679,19 +765,6 @@
     DOM.cardMount.innerHTML = '';
     DOM.categorySelector.innerHTML = '';
 
-    const masterCard = document.createElement('div');
-    masterCard.className = 'category-card master-card' + (isEditMode ? ' edit-mode' : '');
-    masterCard.innerHTML = `
-      <div class="card-header">
-        <h2>Total Bank Balance</h2>
-        <div class="balance-container"><p class="amount">₹${state.bank_balance.toLocaleString('en-IN')}</p></div>
-        <div class="edit-input-group">
-          <input type="number" id="master-balance-input" value="${state.bank_balance}" placeholder="Bank Balance">
-        </div>
-      </div>
-    `;
-    DOM.cardMount.appendChild(masterCard);
-
     let firstKey = true;
     let colorIdx = 0;
     for (let key in state.categories) {
@@ -743,7 +816,42 @@
     return `${datePart} · ${timePart}`;
   }
 
+  function renderBalanceStrip(){
+    if (isEditMode) {
+      DOM.balanceInteractive.innerHTML = `<input type="number" id="master-balance-input" value="${state.bank_balance}" placeholder="Bank Balance">`;
+      return;
+    }
+    if (balanceVisible) {
+      DOM.balanceInteractive.innerHTML = `
+        <span class="value">₹${state.bank_balance.toLocaleString('en-IN')}</span>
+        <button class="btn-toggle-balance" id="btn-toggle-balance">Hide Balance</button>
+      `;
+    } else {
+      DOM.balanceInteractive.innerHTML = `
+        <span class="balance-masked-sm">₹••,•••</span>
+        <button class="btn-toggle-balance" id="btn-toggle-balance">Show Balance</button>
+      `;
+    }
+    const toggleBtn = document.getElementById('btn-toggle-balance');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        balanceVisible = !balanceVisible;
+        renderBalanceStrip();
+      });
+    }
+  }
+
+  function isCreditTxn(t){
+    return t.direction ? t.direction === 'credit' : t.type === 'deposit';
+  }
+
+  function baseLabel(t){
+    return isCreditTxn(t) ? 'Deposit' : (t.category_name || 'Spend');
+  }
+
   function renderStatement(){
+    renderBalanceStrip();
+
     const txns = (state.transactions || []).slice().reverse();
     DOM.statementCount.textContent = `${txns.length} ${txns.length === 1 ? 'entry' : 'entries'}`;
 
@@ -753,11 +861,25 @@
     }
 
     DOM.statementList.innerHTML = txns.map(t => {
-      const isCredit = t.type === 'deposit';
+      const isCredit = isCreditTxn(t);
       const sign = isCredit ? '+' : '−';
-      const label = isCredit ? 'Deposit' : (t.category_name || 'Spend');
+      const label = t.is_reversal ? `Reversal · ${t.original_label}` : baseLabel(t);
+
+      let actionHtml;
+      if (t.is_reversal) {
+        actionHtml = `<span class="txn-tag">Reversal</span>`;
+      } else if (t.reversed) {
+        actionHtml = `<span class="txn-tag">Reversed</span>`;
+      } else {
+        actionHtml = `<button class="txn-reverse" data-txn-id="${t.id}" title="Reverse entry">↺</button>`;
+      }
+
+      const rowClasses = ['txn-row'];
+      if (t.reversed) rowClasses.push('is-reversed');
+      if (t.is_reversal) rowClasses.push('is-reversal');
+
       return `
-        <div class="txn-row">
+        <div class="${rowClasses.join(' ')}" data-txn-id="${t.id}">
           <div class="txn-icon ${isCredit ? 'credit' : 'debit'}">${isCredit ? '↓' : '↑'}</div>
           <div class="txn-mid">
             <div class="txn-title">${label}</div>
@@ -768,10 +890,65 @@
             <div class="txn-amount ${isCredit ? 'credit' : 'debit'}">${sign}₹${t.amount.toLocaleString('en-IN')}</div>
             <div class="txn-balance">bal ₹${t.balance_after.toLocaleString('en-IN')}</div>
           </div>
+          ${actionHtml}
         </div>
       `;
     }).join('');
   }
+
+  function reverseTransaction(txnId){
+    const idx = state.transactions.findIndex(t => String(t.id) === String(txnId));
+    if (idx === -1) return;
+    const original = state.transactions[idx];
+
+    if (original.reversed || original.is_reversal) return; // guard: already handled, button shouldn't exist anyway
+
+    const originalWasCredit = isCreditTxn(original);
+    const label = baseLabel(original);
+
+    if (!confirm(`Reverse this ${originalWasCredit ? 'deposit' : 'spend'} of ₹${original.amount.toLocaleString('en-IN')} (${label})? A reversal entry will be added and your balance adjusted.`)) return;
+
+    // Apply the opposite effect on live balances.
+    if (originalWasCredit) {
+      state.bank_balance -= original.amount;
+    } else {
+      state.bank_balance += original.amount;
+      if (original.category_key && state.categories[original.category_key]) {
+        state.categories[original.category_key].current_balance += original.amount;
+      }
+    }
+
+    // Mark the original as reversed but keep it in history untouched otherwise.
+    original.reversed = true;
+
+    // Add a new, visible reversal entry — the original row is never edited or hidden.
+    const reversal = {
+      id: Date.now() + '-r-' + Math.random().toString(36).slice(2, 8),
+      type: original.type,
+      direction: originalWasCredit ? 'debit' : 'credit',
+      amount: original.amount,
+      remark: `Reversal of ${formatDateTime(original.timestamp)}${original.remark ? ' — ' + original.remark : ''}`,
+      timestamp: new Date().toISOString(),
+      category_key: original.category_key || null,
+      category_name: original.category_name || null,
+      is_reversal: true,
+      reverses_id: original.id,
+      original_label: label,
+      balance_after: state.bank_balance
+    };
+
+    state.transactions.push(reversal);
+
+    renderEngine();
+    renderStatement();
+    pushStateToGitHub();
+    showToast('Reversal entry added');
+  }
+
+  DOM.statementList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.txn-reverse');
+    if (btn) reverseTransaction(btn.dataset.txnId);
+  });
 
   function escapeHtml(str){
     const div = document.createElement('div');
@@ -884,6 +1061,7 @@
     const txn = {
       id: Date.now() + '-' + Math.random().toString(36).slice(2, 8),
       type: entryMode,
+      direction: entryMode === 'deposit' ? 'credit' : 'debit',
       amount: amount,
       remark: remark,
       timestamp: new Date().toISOString()
@@ -935,6 +1113,7 @@
       DOM.dashboard.classList.add('edit-mode-active');
       DOM.fab.style.display = 'none';
       renderEngine();
+      renderBalanceStrip();
     } else {
       DOM.btnEdit.textContent = '✎';
       DOM.dashboard.classList.remove('edit-mode-active');
@@ -952,6 +1131,7 @@
       });
 
       renderEngine();
+      renderBalanceStrip();
       pushStateToGitHub();
     }
   });
@@ -990,6 +1170,7 @@
     if (success) {
       evaluateMonthlyReset();
       renderEngine();
+      renderBalanceStrip();
       if (activeTab === 'ledger') DOM.fab.style.display = 'flex';
     } else {
       showModal(DOM.authModal, true);
